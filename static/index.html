@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StreamVault - Universal Video & Audio Downloader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ambient background lighting -->
+  <div class="glow-sphere sphere-1"></div>
+  <div class="glow-sphere sphere-2"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-top">
+        <div class="brand">
+          <div class="brand-icon">
+            <i class="fa-solid fa-cloud-arrow-down"></i>
+          </div>
+          <div>
+            <h1>Stream<span>Vault</span></h1>
+            <p class="tagline">Universal Video & Audio Downloader</p>
+          </div>
+        </div>
+
+        <!-- Cookies & Settings Button -->
+        <button id="cookieBtn" class="btn-cookie" title="Manage Cookies for authentication / private media">
+          <i class="fa-solid fa-cookie-bite"></i>
+          <span id="cookieBtnText">Cookies: Checking...</span>
+        </button>
+      </div>
+
+      <!-- Supported Platforms Badges -->
+      <div class="badge-group">
+        <span class="badge platform-yt"><i class="fa-brands fa-youtube"></i> YouTube</span>
+        <span class="badge platform-ig"><i class="fa-brands fa-instagram"></i> Instagram Reels & Stories</span>
+        <span class="badge platform-fb"><i class="fa-brands fa-facebook"></i> Facebook Reels & Videos</span>
+        <span class="badge platform-tt"><i class="fa-brands fa-tiktok"></i> TikTok</span>
+        <span class="badge platform-x"><i class="fa-brands fa-x-twitter"></i> Twitter / X</span>
+      </div>
+    </header>
+
+    <!-- Main Card -->
+    <main class="main-card">
+      <!-- Search / Input Section -->
+      <section class="input-section">
+        <div class="label-row">
+          <label for="videoUrl" class="input-label">Paste Media URL</label>
+          <span id="detectedPlatformBadge" class="detected-badge hidden">
+            <i id="detectedIcon" class="fa-solid fa-globe"></i>
+            <span id="detectedName">Web Media</span>
+          </span>
+        </div>
+
+        <div class="search-box">
+          <i class="fa-solid fa-link input-icon"></i>
+          <input 
+            type="url" 
+            id="videoUrl" 
+            placeholder="Paste YouTube, Instagram Reel, Facebook Video, TikTok, or Twitter link..." 
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <div class="input-actions">
+            <button id="pasteBtn" type="button" title="Paste from clipboard" class="btn-icon">
+              <i class="fa-regular fa-clipboard"></i>
+              <span>Paste</span>
+            </button>
+            <button id="clearBtn" type="button" title="Clear input" class="btn-icon hidden">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <button id="fetchBtn" class="btn btn-primary">
+            <span class="btn-text">Analyze</span>
+            <i class="fa-solid fa-arrow-right"></i>
+            <div class="spinner hidden"></div>
+          </button>
+        </div>
+        <p class="input-hint">
+          Works dynamically with YouTube Videos/Shorts, Instagram Reels/Stories, Facebook Videos/Reels, TikTok, and Twitter/X.
+        </p>
+      </section>
+
+      <!-- Video Preview & Download Options Card (Hidden until analyzed) -->
+      <section id="resultSection" class="result-section hidden">
+        <div class="video-preview-card">
+          <div class="thumbnail-wrapper">
+            <img id="videoThumb" src="" alt="Media thumbnail">
+            <span id="videoDuration" class="duration-badge">00:00</span>
+          </div>
+          <div class="video-meta">
+            <div class="title-platform-badge">
+              <span id="mediaPlatformTag" class="platform-tag">
+                <i id="mediaPlatformIcon" class="fa-brands fa-youtube"></i>
+                <span id="mediaPlatformText">Platform</span>
+              </span>
+            </div>
+            <h2 id="videoTitle" class="video-title">Media Title</h2>
+            <div class="meta-row">
+              <span class="meta-item"><i class="fa-solid fa-user"></i> <span id="videoChannel">Creator</span></span>
+              <span class="meta-item"><i class="fa-solid fa-eye"></i> <span id="videoViews">0 views</span></span>
+            </div>
+            <p id="videoDesc" class="video-desc"></p>
+          </div>
+        </div>
+
+        <div class="options-container">
+          <h3 class="section-title"><i class="fa-solid fa-sliders"></i> Download Preferences</h3>
+
+          <!-- Format Selection -->
+          <div class="format-tabs">
+            <button type="button" class="tab-btn active" data-type="video">
+              <i class="fa-solid fa-film"></i>
+              <span>Video (MP4 / WebM)</span>
+            </button>
+            <button type="button" class="tab-btn" data-type="audio">
+              <i class="fa-solid fa-music"></i>
+              <span>Audio Only (MP3 / M4A)</span>
+            </button>
+          </div>
+
+          <div class="controls-grid">
+            <!-- Quality / Resolution -->
+            <div class="form-group">
+              <label for="qualitySelect"><i class="fa-solid fa-gauge-high"></i> Quality / Resolution</label>
+              <select id="qualitySelect" class="custom-select">
+                <!-- Dynamically populated -->
+              </select>
+            </div>
+
+            <!-- Container / Format -->
+            <div class="form-group">
+              <label for="containerSelect"><i class="fa-solid fa-file-video"></i> Format Extension</label>
+              <select id="containerSelect" class="custom-select">
+                <!-- Dynamically populated -->
+              </select>
+            </div>
+
+            <!-- Language Selection -->
+            <div class="form-group" id="languageGroup">
+              <label for="languageSelect"><i class="fa-solid fa-language"></i> Audio Language</label>
+              <select id="languageSelect" class="custom-select">
+                <option value="default">Default / Original Audio</option>
+              </select>
+            </div>
+
+            <!-- Subtitle Selection (Optional) -->
+            <div class="form-group" id="subtitleGroup">
+              <label for="subtitleSelect"><i class="fa-regular fa-closed-captioning"></i> Captions / Subtitles</label>
+              <select id="subtitleSelect" class="custom-select">
+                <option value="none">None</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Download Action Button -->
+          <div class="action-footer">
+            <button id="downloadBtn" class="btn btn-download">
+              <i class="fa-solid fa-cloud-arrow-down"></i>
+              <span>Start Download</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Download Progress Section -->
+        <div id="progressSection" class="progress-section hidden">
+          <div class="progress-header">
+            <div class="status-indicator">
+              <span class="pulsing-dot"></span>
+              <span id="progressStatusText">Preparing download...</span>
+            </div>
+            <span id="progressPercent">0%</span>
+          </div>
+
+          <div class="progress-track">
+            <div id="progressBar" class="progress-fill" style="width: 0%;"></div>
+          </div>
+
+          <div class="progress-stats">
+            <span><i class="fa-solid fa-gauge"></i> Speed: <strong id="progressSpeed">0 MB/s</strong></span>
+            <span><i class="fa-solid fa-clock"></i> ETA: <strong id="progressEta">Calculating...</strong></span>
+          </div>
+
+          <div id="readyBox" class="ready-box hidden">
+            <div class="ready-info">
+              <i class="fa-solid fa-circle-check ready-icon"></i>
+              <div>
+                <h4>Download Complete!</h4>
+                <p>Your file is ready to save.</p>
+              </div>
+            </div>
+            <a id="saveFileBtn" href="#" class="btn btn-save" download>
+              <i class="fa-solid fa-download"></i>
+              <span>Save File</span>
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Features Section -->
+    <section class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fa-brands fa-instagram"></i></div>
+        <h3>Instagram Reels & Stories</h3>
+        <p>Save high-quality Instagram reels, posts, and IG stories in original MP4 format.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fa-brands fa-facebook"></i></div>
+        <h3>Facebook Videos & Reels</h3>
+        <p>Download full-length Facebook Watch videos and quick Reels effortlessly.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fa-brands fa-youtube"></i></div>
+        <h3>YouTube Multi-Track</h3>
+        <p>Extract videos up to 1080p Full HD with selectable language audio dubs.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fa-solid fa-headphones"></i></div>
+        <h3>Studio Audio Extraction</h3>
+        <p>Convert any video into 320kbps MP3 or M4A audio with one click.</p>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>&copy; 2026 StreamVault. Universal Media Downloader powered by FastAPI & Modern Web.</p>
+    </footer>
+  </div>
+
+  <!-- Cookies Modal -->
+  <div id="cookieModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-cookie-bite"></i>
+          <h3>Cookies & Authentication</h3>
+        </div>
+        <button id="closeModalBtn" class="modal-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-desc">
+          Some platforms (like Instagram stories/private posts, Facebook videos, or YouTube bot checks) require session cookies to allow downloads.
+        </p>
+
+        <div class="instructions-box">
+          <h4><i class="fa-solid fa-circle-question"></i> How to export cookies in 30 seconds:</h4>
+          <ol>
+            <li>Install browser extension <strong>"Get cookies.txt locally"</strong> (Chrome, Edge, Firefox).</li>
+            <li>Go to the website (e.g. <code>youtube.com</code> or <code>instagram.com</code> or <code>facebook.com</code>) while logged in.</li>
+            <li>Click the extension icon -> click <strong>"Export"</strong> or <strong>"Copy"</strong>.</li>
+            <li>Upload the file below or paste the content directly!</li>
+          </ol>
+        </div>
+
+        <!-- Upload file option -->
+        <div class="cookie-input-group">
+          <label>Option 1: Upload <code>cookies.txt</code> file</label>
+          <input type="file" id="cookieFileInput" accept=".txt">
+        </div>
+
+        <div class="divider"><span>OR</span></div>
+
+        <!-- Paste text option -->
+        <div class="cookie-input-group">
+          <label>Option 2: Paste cookies text</label>
+          <textarea id="cookieTextArea" rows="4" placeholder="# Netscape HTTP Cookie File..."></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button id="saveCookiesBtn" class="btn btn-primary">
+            <i class="fa-solid fa-check"></i> Save Cookies
+          </button>
+          <button id="deleteCookiesBtn" class="btn btn-danger hidden">
+            <i class="fa-solid fa-trash-can"></i> Remove Saved Cookies
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast hidden">
+    <i id="toastIcon" class="fa-solid fa-circle-info"></i>
+    <span id="toastMessage">Notification message</span>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
