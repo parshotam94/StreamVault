@@ -4,6 +4,7 @@ import uuid
 import asyncio
 import logging
 import shutil
+import time
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 from urllib.parse import urlparse
@@ -340,10 +341,11 @@ def run_download_task(task_id: str, req: DownloadRequest):
         target_files = list(DOWNLOADS_DIR.glob(f"{task_id}_*"))
         if target_files:
             actual_file = target_files[0]
+            clean_name = re.sub(r'^[a-f0-9\-]+_', '', actual_file.name)
             download_tasks[task_id].update({
                 "status": "completed",
                 "percent": 100,
-                "filename": actual_file.name,
+                "filename": clean_name,
                 "filepath": str(actual_file),
                 "title": info.get("title", f"{platform_info['name']} Media")
             })
@@ -356,6 +358,16 @@ def run_download_task(task_id: str, req: DownloadRequest):
             "status": "error",
             "error": str(e)
         })
+
+def cleanup_old_files():
+    """Removes download files older than 30 minutes to conserve disk space without interrupting active downloads."""
+    now = time.time()
+    try:
+        for f in DOWNLOADS_DIR.glob("*"):
+            if f.is_file() and (now - f.stat().st_mtime > 1800):
+                f.unlink(missing_ok=True)
+    except Exception as e:
+        logger.debug(f"Cleanup error: {e}")
 
 @app.post("/api/start-download")
 async def start_download(req: DownloadRequest, background_tasks: BackgroundTasks):
@@ -370,6 +382,7 @@ async def start_download(req: DownloadRequest, background_tasks: BackgroundTasks
         "error": None
     }
 
+    background_tasks.add_task(cleanup_old_files)
     background_tasks.add_task(run_download_task, task_id, req)
     return {"task_id": task_id}
 
@@ -381,33 +394,48 @@ async def get_progress(task_id: str):
     return task
 
 @app.get("/api/get-file/{task_id}")
-async def get_file(task_id: str, background_tasks: BackgroundTasks):
+async def get_file(task_id: str):
     task = download_tasks.get(task_id)
     if not task or task.get("status") != "completed":
         raise HTTPException(status_code=400, detail="File is not ready or does not exist")
 
     filepath = task.get("filepath")
-    filename = task.get("filename")
-
     if not filepath or not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="File not found on server")
 
-    clean_name = re.sub(r'^[a-f0-9\-]+_', '', filename)
+    clean_name = re.sub(r'^[a-f0-9\-]+_', '', os.path.basename(filepath))
+    safe_filename = re.sub(r'[\\/*?:"<>|]', "", clean_name).strip() or "media_download.mp4"
 
-    def cleanup_file(path: str, t_id: str):
-        try:
-            if os.path.exists(path):
-                os.remove(path)
-            download_tasks.pop(t_id, None)
-        except Exception as err:
-            logger.error(f"Cleanup error: {err}")
+    # Precise mime type for mobile (iOS Safari/Android) and desktop media players
+    lower = safe_filename.lower()
+    if lower.endswith(".mp4"):
+        media_type = "video/mp4"
+    elif lower.endswith(".webm"):
+        media_type = "video/webm"
+    elif lower.endswith(".mp3"):
+        media_type = "audio/mpeg"
+    elif lower.endswith(".m4a"):
+        media_type = "audio/mp4"
+    elif lower.endswith(".wav"):
+        media_type = "audio/wav"
+    else:
+        media_type = "application/octet-stream"
 
-    background_tasks.add_task(cleanup_file, filepath, task_id)
+    from urllib.parse import quote
+    encoded_filename = quote(safe_filename)
+    ascii_fallback = safe_filename.encode("ascii", "ignore").decode("ascii").strip() or "download.mp4"
+
+    headers = {
+        "Content-Disposition": f'attachment; filename="{ascii_fallback}"; filename*=UTF-8\'\'{encoded_filename}',
+        "Access-Control-Expose-Headers": "Content-Disposition",
+        "Cache-Control": "public, max-age=3600"
+    }
 
     return FileResponse(
         path=filepath,
-        filename=clean_name,
-        media_type="application/octet-stream"
+        filename=safe_filename,
+        media_type=media_type,
+        headers=headers
     )
 
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

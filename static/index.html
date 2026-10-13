@@ -163,7 +163,7 @@
           <div class="action-footer">
             <button id="downloadBtn" class="btn btn-download">
               <i class="fa-solid fa-cloud-arrow-down"></i>
-              <span>Start Download</span>
+              <span id="downloadBtnText">Download to Phone / Laptop</span>
             </button>
           </div>
         </div>
@@ -191,13 +191,13 @@
             <div class="ready-info">
               <i class="fa-solid fa-circle-check ready-icon"></i>
               <div>
-                <h4>Download Complete!</h4>
-                <p>Your file is ready to save.</p>
+                <h4 id="readyTitle">Saved directly to your device!</h4>
+                <p id="readySubtitle">Check your phone or laptop <strong>Downloads</strong> section.</p>
               </div>
             </div>
-            <a id="saveFileBtn" href="#" class="btn btn-save" download>
-              <i class="fa-solid fa-download"></i>
-              <span>Save File</span>
+            <a id="saveFileBtn" href="#" class="btn btn-redownload" download title="Click only if you need another copy">
+              <i class="fa-solid fa-rotate-right"></i>
+              <span id="saveFileText">Download Again</span>
             </a>
           </div>
         </div>

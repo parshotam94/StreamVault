@@ -85,6 +85,7 @@ const languageGroup = document.getElementById('languageGroup');
 const subtitleGroup = document.getElementById('subtitleGroup');
 
 const downloadBtn = document.getElementById('downloadBtn');
+const downloadBtnText = document.getElementById('downloadBtnText');
 const progressSection = document.getElementById('progressSection');
 const progressStatusText = document.getElementById('progressStatusText');
 const progressPercent = document.getElementById('progressPercent');
@@ -92,7 +93,10 @@ const progressBar = document.getElementById('progressBar');
 const progressSpeed = document.getElementById('progressSpeed');
 const progressEta = document.getElementById('progressEta');
 const readyBox = document.getElementById('readyBox');
+const readyTitle = document.getElementById('readyTitle');
+const readySubtitle = document.getElementById('readySubtitle');
 const saveFileBtn = document.getElementById('saveFileBtn');
+const saveFileText = document.getElementById('saveFileText');
 
 // Cookie Modal Elements
 const cookieBtn = document.getElementById('cookieBtn');
@@ -426,6 +430,25 @@ function updateFormatOptions() {
   }
 }
 
+// Track downloaded tasks to strictly prevent duplicate automatic downloads
+const downloadedTaskIds = new Set();
+
+function triggerDirectDownload(url, filename) {
+  const link = document.createElement('a');
+  link.href = url;
+  if (filename) {
+    link.download = filename;
+  }
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(() => {
+    try {
+      document.body.removeChild(link);
+    } catch (_) {}
+  }, 1500);
+}
+
 // Start Download Request
 downloadBtn.addEventListener('click', async () => {
   const url = videoUrlInput.value.trim();
@@ -444,6 +467,7 @@ downloadBtn.addEventListener('click', async () => {
   };
 
   downloadBtn.disabled = true;
+  if (downloadBtnText) downloadBtnText.textContent = 'Preparing Download...';
   readyBox.classList.add('hidden');
   progressSection.classList.remove('hidden');
   progressSection.scrollIntoView({ behavior: 'smooth' });
@@ -469,6 +493,7 @@ downloadBtn.addEventListener('click', async () => {
     trackProgress(data.task_id);
   } catch (err) {
     downloadBtn.disabled = false;
+    if (downloadBtnText) downloadBtnText.textContent = 'Download to Phone / Laptop';
     showToast(err.message, 'error');
     progressStatusText.textContent = 'Error occurred';
   }
@@ -476,13 +501,17 @@ downloadBtn.addEventListener('click', async () => {
 
 // Track download progress via polling
 function trackProgress(taskId) {
-  if (pollInterval) clearInterval(pollInterval);
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
 
   pollInterval = setInterval(async () => {
     try {
       const res = await fetch(`/api/progress/${taskId}`);
       if (!res.ok) {
         clearInterval(pollInterval);
+        pollInterval = null;
         throw new Error('Task lost or expired');
       }
 
@@ -492,32 +521,55 @@ function trackProgress(taskId) {
         const percent = Math.min(task.percent || 0, 99);
         progressBar.style.width = `${percent}%`;
         progressPercent.textContent = `${percent}%`;
-        progressStatusText.textContent = 'Downloading media...';
+        progressStatusText.textContent = 'Downloading media from source...';
         progressSpeed.textContent = task.speed || 'Calculating...';
         progressEta.textContent = task.eta || 'Calculating...';
       } else if (task.status === 'processing') {
         progressBar.style.width = '99%';
         progressPercent.textContent = '99%';
-        progressStatusText.textContent = 'Processing & remuxing file...';
+        progressStatusText.textContent = 'Muxing & converting audio/video tracks...';
         progressSpeed.textContent = 'Processing';
         progressEta.textContent = 'Almost ready';
       } else if (task.status === 'completed') {
         clearInterval(pollInterval);
+        pollInterval = null;
+
         progressBar.style.width = '100%';
         progressPercent.textContent = '100%';
-        progressStatusText.textContent = 'Conversion Complete!';
+        progressStatusText.textContent = 'Ready! Saved to your device.';
         progressSpeed.textContent = 'Done';
         progressEta.textContent = '0s';
 
-        readyBox.classList.remove('hidden');
-        saveFileBtn.href = `/api/get-file/${taskId}`;
         downloadBtn.disabled = false;
+        if (downloadBtnText) downloadBtnText.textContent = 'Download to Phone / Laptop';
 
-        showToast('Download finished! Click Save File.', 'success');
-        saveFileBtn.click();
+        const downloadUrl = `/api/get-file/${taskId}`;
+        saveFileBtn.href = downloadUrl;
+        if (task.filename) {
+          saveFileBtn.setAttribute('download', task.filename);
+        }
+
+        // Trigger direct download to Phone or Laptop EXACTLY ONCE
+        if (!downloadedTaskIds.has(taskId)) {
+          downloadedTaskIds.add(taskId);
+          triggerDirectDownload(downloadUrl, task.filename);
+          showToast('✅ Downloaded directly into your phone/laptop Downloads section!', 'success');
+        }
+
+        // Show confirmation that file was saved to device
+        readyBox.classList.remove('hidden');
+        if (readyTitle) readyTitle.textContent = 'Saved directly to your device!';
+        if (readySubtitle) {
+          const displayTitle = task.filename || (currentVideoData ? currentVideoData.title : 'media file');
+          readySubtitle.innerHTML = `File <strong>${displayTitle}</strong> is in your phone/laptop <strong>Downloads</strong> section.`;
+        }
+        if (saveFileText) saveFileText.textContent = 'Download Again';
+
       } else if (task.status === 'error') {
         clearInterval(pollInterval);
+        pollInterval = null;
         downloadBtn.disabled = false;
+        if (downloadBtnText) downloadBtnText.textContent = 'Download to Phone / Laptop';
         progressStatusText.textContent = 'Failed';
         showToast(`Download failed: ${task.error}`, 'error');
         if (task.error && (task.error.toLowerCase().includes('login') || task.error.toLowerCase().includes('cookies'))) {
@@ -526,11 +578,28 @@ function trackProgress(taskId) {
       }
     } catch (e) {
       clearInterval(pollInterval);
+      pollInterval = null;
       downloadBtn.disabled = false;
+      if (downloadBtnText) downloadBtnText.textContent = 'Download to Phone / Laptop';
       showToast(e.message, 'error');
     }
   }, 1000);
 }
+
+// Re-download button handler with debounce lock to prevent accidental multi-clicks
+saveFileBtn.addEventListener('click', (e) => {
+  if (saveFileBtn.dataset.busy === 'true') {
+    e.preventDefault();
+    return;
+  }
+  saveFileBtn.dataset.busy = 'true';
+  saveFileBtn.style.opacity = '0.6';
+  showToast('Re-downloading file...', 'info');
+  setTimeout(() => {
+    saveFileBtn.dataset.busy = 'false';
+    saveFileBtn.style.opacity = '1';
+  }, 3000);
+});
 
 // Check initial cookies status on page load
 checkCookieStatus();
